@@ -37,6 +37,7 @@
 #ifndef SRDF_MODEL_
 #define SRDF_MODEL_
 
+#include <limits>
 #include <map>
 #include <string>
 #include <vector>
@@ -103,6 +104,13 @@ public:
     std::vector<std::string> subgroups_;
   };
 
+  struct Limit
+  {
+    std::string name_;
+    double velocity_ { std::numeric_limits<double>::infinity() };
+    double acceleration_ { std::numeric_limits<double>::infinity() };
+  };
+
   /// In addition to the joints specified in the URDF it is
   /// sometimes convenient to add special (virtual) joints. For
   /// example, to connect the robot to the environment in a
@@ -120,6 +128,9 @@ public:
 
     /// The link this joint applies to
     std::string child_link_;
+
+    /// Limits that this joint may have
+    std::vector<Limit> limits_;
   };
 
   /// Representation of an end effector

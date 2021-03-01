@@ -96,6 +96,35 @@ void srdf::Model::loadVirtualJoints(const urdf::ModelInterface& urdf_model, XMLE
     boost::trim(vj.child_link_);
     vj.parent_frame_ = std::string(parent);
     boost::trim(vj.parent_frame_);
+
+    for (TiXmlElement* limit_xml = vj_xml->FirstChildElement("limit"); limit_xml;
+         limit_xml = limit_xml->NextSiblingElement("limit"))
+    {
+      Limit limit;
+      const char* lname = limit_xml->Attribute("name");
+      const char* lvel = limit_xml->Attribute("vel");
+      const char* lacc = limit_xml->Attribute("acc");
+      if (!lname)
+      {
+        CONSOLE_BRIDGE_logError("Limit name not specified in '%s'", jname);
+        continue;
+      }
+      else
+      {
+        limit.name_ = std::string(jname) + "/" + std::string(lname);
+      }
+      if (lvel)
+      {
+        limit.velocity_ = atof(lvel);
+      }
+      if (lacc)
+      {
+        limit.acceleration_ = atof(lacc);
+      }
+
+      vj.limits_.push_back(limit);
+    }
+
     virtual_joints_.push_back(vj);
   }
 }
