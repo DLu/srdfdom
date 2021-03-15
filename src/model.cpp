@@ -43,6 +43,22 @@
 #include <set>
 #include <limits>
 
+bool srdf::Model::isValidJoint(const urdf::ModelInterface& urdf_model, const std::string& name) const
+{
+  if (urdf_model.getJoint(name))
+  {
+    return true;
+  }
+  for (std::size_t k = 0; k < virtual_joints_.size(); ++k)
+  {
+    if (virtual_joints_[k].name_ == name)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 void srdf::Model::loadVirtualJoints(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml)
 {
   for (TiXmlElement* vj_xml = robot_xml->FirstChildElement("virtual_joint"); vj_xml;
@@ -81,10 +97,10 @@ void srdf::Model::loadVirtualJoints(const urdf::ModelInterface& urdf_model, TiXm
     vj.type_ = std::string(type);
     boost::trim(vj.type_);
     std::transform(vj.type_.begin(), vj.type_.end(), vj.type_.begin(), ::tolower);
-    if (vj.type_ != "planar" && vj.type_ != "floating" && vj.type_ != "fixed" && vj.type_ != "diff_drive")
+    if (vj.type_ != "planar" && vj.type_ != "floating" && vj.type_ != "fixed")
     {
-      CONSOLE_BRIDGE_logError("Unknown type of joint: '%s'. Assuming 'fixed' instead. Other known types are 'planar', "
-                              "'diff_drive' and 'floating'.",
+      CONSOLE_BRIDGE_logError("Unknown type of joint: '%s'. Assuming 'fixed' instead. Other known types are 'planar' "
+                              "and 'floating'.",
                               type);
       vj.type_ = "fixed";
     }
@@ -143,20 +159,10 @@ void srdf::Model::loadGroups(const urdf::ModelInterface& urdf_model, TiXmlElemen
         continue;
       }
       std::string jname_str = boost::trim_copy(std::string(jname));
-      if (!urdf_model.getJoint(jname_str))
+      if (!isValidJoint(urdf_model, jname_str))
       {
-        bool missing = true;
-        for (std::size_t k = 0; k < virtual_joints_.size(); ++k)
-          if (virtual_joints_[k].name_ == jname_str)
-          {
-            missing = false;
-            break;
-          }
-        if (missing)
-        {
-          CONSOLE_BRIDGE_logError("Joint '%s' declared as part of group '%s' is not known to the URDF", jname, gname);
-          continue;
-        }
+        CONSOLE_BRIDGE_logError("Joint '%s' declared as part of group '%s' is not known to the URDF", jname, gname);
+        continue;
       }
       g.joints_.push_back(jname_str);
     }
@@ -332,21 +338,10 @@ void srdf::Model::loadGroupStates(const urdf::ModelInterface& urdf_model, TiXmlE
         continue;
       }
       std::string jname_str = boost::trim_copy(std::string(jname));
-      if (!urdf_model.getJoint(jname_str))
+      if (!isValidJoint(urdf_model, jname_str))
       {
-        bool missing = true;
-        for (std::size_t k = 0; k < virtual_joints_.size(); ++k)
-          if (virtual_joints_[k].name_ == jname_str)
-          {
-            missing = false;
-            break;
-          }
-        if (missing)
-        {
-          CONSOLE_BRIDGE_logError("Joint '%s' declared as part of group state '%s' is not known to the URDF", jname,
-                                  sname);
-          continue;
-        }
+        CONSOLE_BRIDGE_logError("Joint '%s' declared as part of group state '%s' is not known to the URDF", jname,
+                                sname);
       }
       try
       {
@@ -577,13 +572,7 @@ void srdf::Model::loadPassiveJoints(const urdf::ModelInterface& urdf_model, TiXm
     PassiveJoint pj;
     pj.name_ = boost::trim_copy(std::string(name));
 
-    // see if a virtual joint was marked as passive
-    bool vjoint = false;
-    for (std::size_t i = 0; !vjoint && i < virtual_joints_.size(); ++i)
-      if (virtual_joints_[i].name_ == pj.name_)
-        vjoint = true;
-
-    if (!vjoint && !urdf_model.getJoint(pj.name_))
+    if (!isValidJoint(urdf_model, pj.name_))
     {
       CONSOLE_BRIDGE_logError("Joint '%s' marked as passive is not known to the URDF. Ignoring.", name);
       continue;
@@ -620,6 +609,13 @@ void srdf::Model::loadJointProperties(const urdf::ModelInterface& urdf_model, Ti
     jp.joint_name_ = boost::trim_copy(std::string(jname));
     jp.property_name_ = boost::trim_copy(std::string(pname));
     jp.value_ = std::string(pval);
+
+    if (!isValidJoint(urdf_model, jp.joint_name_))
+    {
+      CONSOLE_BRIDGE_logWarn("Property defined for a joint '%s' that is not known to the URDF. Ignoring.",
+                             jp.joint_name_.c_str());
+      continue;
+    }
     joint_properties_[jp.joint_name_].push_back(jp);
   }
 }

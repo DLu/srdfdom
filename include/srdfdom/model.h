@@ -277,6 +277,8 @@ public:
   void clear();
 
 private:
+  bool isValidJoint(const urdf::ModelInterface& urdf_model, const std::string& name) const;
+
   void loadVirtualJoints(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
   void loadGroups(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
   void loadGroupStates(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
