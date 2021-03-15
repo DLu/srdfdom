@@ -94,35 +94,6 @@ void srdf::Model::loadVirtualJoints(const urdf::ModelInterface& urdf_model, TiXm
     boost::trim(vj.child_link_);
     vj.parent_frame_ = std::string(parent);
     boost::trim(vj.parent_frame_);
-
-    for (TiXmlElement* limit_xml = vj_xml->FirstChildElement("limit"); limit_xml;
-         limit_xml = limit_xml->NextSiblingElement("limit"))
-    {
-      Limit limit;
-      const char* lname = limit_xml->Attribute("name");
-      const char* lvel = limit_xml->Attribute("vel");
-      const char* lacc = limit_xml->Attribute("acc");
-      if (!lname)
-      {
-        CONSOLE_BRIDGE_logError("Limit name not specified in '%s'", jname);
-        continue;
-      }
-      else
-      {
-        limit.name_ = std::string(jname) + "/" + std::string(lname);
-      }
-      if (lvel)
-      {
-        limit.velocity_ = atof(lvel);
-      }
-      if (lacc)
-      {
-        limit.acceleration_ = atof(lacc);
-      }
-
-      vj.limits_.push_back(limit);
-    }
-
     virtual_joints_.push_back(vj);
   }
 }
@@ -621,6 +592,38 @@ void srdf::Model::loadPassiveJoints(const urdf::ModelInterface& urdf_model, TiXm
   }
 }
 
+void srdf::Model::loadJointProperties(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml)
+{
+  for (TiXmlElement* prop_xml = robot_xml->FirstChildElement("joint_property"); prop_xml;
+       prop_xml = prop_xml->NextSiblingElement("joint_property"))
+  {
+    const char* jname = prop_xml->Attribute("joint_name");
+    const char* pname = prop_xml->Attribute("property_name");
+    const char* pval = prop_xml->Attribute("value");
+    if (!jname)
+    {
+      CONSOLE_BRIDGE_logError("Joint name is not specified");
+      continue;
+    }
+    if (!pname)
+    {
+      CONSOLE_BRIDGE_logError("Property name for joint '%s' is not specified", jname);
+      continue;
+    }
+    if (!pval)
+    {
+      CONSOLE_BRIDGE_logError("Value is not specified for property '%s' joint '%s'", pname, jname);
+      continue;
+    }
+
+    JointProperty jp;
+    jp.joint_name_ = boost::trim_copy(std::string(jname));
+    jp.property_name_ = boost::trim_copy(std::string(pname));
+    jp.value_ = std::string(pval);
+    joint_properties_[jp.joint_name_].push_back(jp);
+  }
+}
+
 bool srdf::Model::initXml(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml)
 {
   clear();
@@ -649,6 +652,7 @@ bool srdf::Model::initXml(const urdf::ModelInterface& urdf_model, TiXmlElement* 
   loadLinkSphereApproximations(urdf_model, robot_xml);
   loadDisabledCollisions(urdf_model, robot_xml);
   loadPassiveJoints(urdf_model, robot_xml);
+  loadJointProperties(urdf_model, robot_xml);
 
   return true;
 }

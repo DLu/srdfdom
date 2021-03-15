@@ -37,7 +37,6 @@
 #ifndef SRDF_MODEL_
 #define SRDF_MODEL_
 
-#include <limits>
 #include <map>
 #include <string>
 #include <vector>
@@ -104,13 +103,6 @@ public:
     std::vector<std::string> subgroups_;
   };
 
-  struct Limit
-  {
-    std::string name_;
-    double velocity_ { std::numeric_limits<double>::infinity() };
-    double acceleration_ { std::numeric_limits<double>::infinity() };
-  };
-
   /// In addition to the joints specified in the URDF it is
   /// sometimes convenient to add special (virtual) joints. For
   /// example, to connect the robot to the environment in a
@@ -128,9 +120,6 @@ public:
 
     /// The link this joint applies to
     std::string child_link_;
-
-    /// Limits that this joint may have
-    std::vector<Limit> limits_;
   };
 
   /// Representation of an end effector
@@ -206,6 +195,19 @@ public:
     std::string name_;
   };
 
+  // Some joints may have additional numerical properties.
+  struct JointProperty
+  {
+    /// The name of the joint that this property belongs to
+    std::string joint_name_;
+
+    /// The name of the property
+    std::string property_name_;
+
+    /// The value of the property. Type not specified.
+    std::string value_;
+  };
+
   /// Get the name of this model
   const std::string& getName() const
   {
@@ -258,6 +260,19 @@ public:
     return link_sphere_approximations_;
   }
 
+  /// Get the joint properties for a particular joint (empty vector if none)
+  const std::vector<JointProperty>& getJointProperties(const std::string& joint_name) const
+  {
+    std::map<std::string, std::vector<JointProperty>>::const_iterator iter = joint_properties_.find(joint_name);
+    if (iter == joint_properties_.end())
+    {
+      // We return a standard empty vector here rather than insert a new empty vector
+      // into the map in order to keep the method const
+      return empty_vector_;
+    }
+    return iter->second;
+  }
+
   /// Clear the model
   void clear();
 
@@ -269,6 +284,7 @@ private:
   void loadLinkSphereApproximations(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
   void loadDisabledCollisions(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
   void loadPassiveJoints(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
+  void loadJointProperties(const urdf::ModelInterface& urdf_model, TiXmlElement* robot_xml);
 
   std::string name_;
   std::vector<Group> groups_;
@@ -278,6 +294,10 @@ private:
   std::vector<LinkSpheres> link_sphere_approximations_;
   std::vector<DisabledCollision> disabled_collisions_;
   std::vector<PassiveJoint> passive_joints_;
+  std::map<std::string, std::vector<JointProperty>> joint_properties_;
+
+  // Empty joint property vector
+  std::vector<JointProperty> empty_vector_;
 };
 typedef std::shared_ptr<Model> ModelSharedPtr;
 typedef std::shared_ptr<const Model> ModelConstSharedPtr;
